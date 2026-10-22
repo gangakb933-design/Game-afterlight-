@@ -1,0 +1,6 @@
+{
+  "name": "Afterlight: Recovery",
+  "description": "A dark space-themed exploration game recovering historical NASA relics across the Moon and Mars.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
