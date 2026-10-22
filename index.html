@@ -1,21 +1,576 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0" />
-    <title>Afterlight: Recovery</title>
-    <meta name="description" content="A dark space-themed exploration game recovering historical NASA relics across the Moon and Mars." />
-    <meta property="og:title" content="Afterlight: Recovery" />
-    <meta property="og:description" content="A dark space-themed exploration game recovering historical NASA relics across the Moon and Mars." />
-    <meta property="og:type" content="website" />
-    <meta name="twitter:card" content="summary_large_image" />
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
-  </head>
-  <body class="bg-[#080a0f] text-slate-100 overflow-hidden select-none">
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Afterlight: Recovery</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            margin: 0;
+            padding: 0;
+        }
+        body, html {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #0b0c10;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            color: #ffffff;
+        }
+        #game-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        canvas {
+            display: block;
+            background: #000;
+            touch-action: none;
+        }
+        
+        /* Glassmorphism UI Overlays */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+            color: #fff;
+        }
+
+        /* Modal Screens */
+        .modal {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            background: rgba(0, 0, 0, 0.7);
+        }
+        .modal-content {
+            width: 90%;
+            max-width: 480px;
+            padding: 24px;
+            text-align: center;
+            position: relative;
+        }
+        
+        /* Buttons */
+        .btn {
+            background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+            border: none;
+            color: white;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 30px;
+            cursor: pointer;
+            margin-top: 15px;
+            box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
+            transition: all 0.2s ease;
+        }
+        .btn:active {
+            transform: scale(0.95);
+        }
+        
+        /* Custom HUD Elements */
+        #hud-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #progress-bar-container {
+            position: absolute;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 50%;
+            max-width: 280px;
+            height: 10px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 6px;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        #progress-fill {
+            width: 0%;
+            height: 100%;
+            background: linear-gradient(90deg, #60a5fa, #3b82f6);
+            transition: width 0.4s ease;
+        }
+        
+        /* Action Button */
+        #use-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 30px;
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: radial-gradient(circle, #3b82f6, #1e40af);
+            border: 3px solid rgba(255, 255, 255, 0.8);
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease, transform 0.2s ease;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
+        }
+        #use-btn.active {
+            opacity: 1;
+            pointer-events: auto;
+            animation: pulse 1.5s infinite alternate;
+        }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
+            100% { transform: scale(1.08); box-shadow: 0 0 25px rgba(96, 165, 250, 0.9); }
+        }
+
+        /* Certificate Screen */
+        input[type="text"] {
+            width: 80%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: rgba(0, 0, 0, 0.5);
+            color: #fff;
+            text-align: center;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- HUD Overlay -->
+    <div id="hud-container">
+        <div id="progress-bar-container">
+            <div id="progress-fill"></div>
+        </div>
+        <div id="use-btn">USE</div>
+    </div>
+
+    <!-- Comic Modal -->
+    <div id="comic-modal" class="modal" style="display: flex;">
+        <div class="modal-content glass-panel">
+            <h2 id="comic-title">Chapter 1: The Moon</h2>
+            <p id="comic-text" style="margin: 15px 0; color: #93c5fd; font-style: italic;">"Someone left the lights on."</p>
+            <p style="font-size: 14px; opacity: 0.8; margin-bottom: 20px;">Rotate screen horizontally for best view!</p>
+            <button class="btn" id="start-chapter-btn">Begin Recovery</button>
+        </div>
+    </div>
+
+    <!-- Mini-Game Modal -->
+    <div id="minigame-modal" class="modal">
+        <div class="modal-content glass-panel">
+            <button id="minigame-reset" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: #aaa; cursor: pointer;">↺ Reset</button>
+            <h3 id="minigame-title">Relic Task</h3>
+            <p id="minigame-desc" style="font-size: 14px; color: #94a3b8; margin: 10px 0;">Complete the task to wake the relic.</p>
+            <div id="minigame-area" style="width: 100%; height: 200px; background: rgba(0,0,0,0.4); border-radius: 12px; margin: 15px 0; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center;">
+            </div>
+            <button class="btn" id="minigame-submit" style="display: none;">Complete Task</button>
+        </div>
+    </div>
+
+    <!-- Fact Card Modal -->
+    <div id="fact-modal" class="modal">
+        <div class="modal-content glass-panel">
+            <h3 id="fact-relic-name">Relic Recovered!</h3>
+            <div style="background: #fff; padding: 10px; border-radius: 8px; margin: 15px 0; color: #000;">
+                <p id="fact-photo-placeholder" style="height: 120px; background: #e2e8f0; display: flex; justify-content: center; align-items: center; border-radius: 4px; font-weight: bold; color: #64748b;">[ NASA Photo ]</p>
+            </div>
+            <p id="fact-text" style="font-size: 14px; text-align: left; margin-bottom: 15px; line-height: 1.4;"></p>
+            <a id="fact-link" href="#" target="_blank" style="color: #60a5fa; font-size: 12px; text-decoration: none;">Source: NASA Official Archives</a>
+            <br>
+            <button class="btn" id="fact-continue-btn">Continue</button>
+        </div>
+    </div>
+
+    <!-- Certificate Modal -->
+    <div id="certificate-modal" class="modal">
+        <div class="modal-content glass-panel">
+            <h2>Mission Accomplished</h2>
+            <p style="margin: 10px 0; font-size: 14px;">You recovered all historical relics!</p>
+            <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="20">
+            <br>
+            <button class="btn" id="download-cert-btn">Download Certificate</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- Canvas & Engine Setup ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    
+    // Zoom factor: Lower value = zoomed out view
+    const CAMERA_SCALE = 0.65;
+
+    function resizeCanvas() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resizeCanvas);
+    resizeCanvas();
+
+    // --- Game State ---
+    let currentChapter = 1;
+    let progress = 0;
+    let footprints = [];
+    let floatingTexts = [];
+    let isTaskActive = false;
+    let activeRelic = null;
+
+    // Player Data
+    const player = {
+        x: 300,
+        y: 300,
+        radius: 16,
+        vx: 0,
+        vy: 0,
+        speed: 3.5,
+        angle: 0,
+        idleTimer: 0,
+        walkCycle: 0
+    };
+
+    // Virtual Joystick
+    const joystick = {
+        active: false,
+        startX: 0,
+        startY: 0,
+        currX: 0,
+        currY: 0,
+        maxRadius: 50,
+        dx: 0,
+        dy: 0
+    };
+
+    // Drone Companion
+    const drone = {
+        x: 280,
+        y: 280,
+        targetAngle: 0
+    };
+
+    // World Relics
+    const relics = [
+        { id: 1, chapter: 1, name: 'Apollo Science Station', x: 600, y: 300, recovered: false, icon: '⚡' },
+        { id: 2, chapter: 1, name: 'Lunar Rover', x: 1000, y: 600, recovered: false, icon: '🚜' },
+        { id: 3, chapter: 1, name: 'Surveyor 3', x: 400, y: 900, recovered: false, icon: '📡' },
+        { id: 4, chapter: 2, name: 'Viking Lander', x: 500, y: 400, recovered: false, icon: '🛰️' },
+        { id: 5, chapter: 2, name: 'Phoenix Lander', x: 1100, y: 500, recovered: false, icon: '⛏️' },
+        { id: 6, chapter: 2, name: 'Ingenuity Helicopter', x: 800, y: 1000, recovered: false, icon: '🚁' }
+    ];
+
+    const bonusCards = [
+        { id: 1, chapter: 1, x: 800, y: 200, collected: false },
+        { id: 2, chapter: 1, x: 200, y: 800, collected: false },
+        { id: 3, chapter: 2, x: 900, y: 300, collected: false },
+        { id: 4, chapter: 2, x: 300, y: 900, collected: false }
+    ];
+
+    const obstacles = [
+        { x: 500, y: 500, radius: 40 },
+        { x: 800, y: 750, radius: 60 },
+        { x: 350, y: 650, radius: 35 }
+    ];
+
+    // --- Input Handling ---
+    window.addEventListener('touchstart', (e) => {
+        if (isTaskActive) return;
+        for (let i = 0; i < e.touches.length; i++) {
+            const touch = e.touches[i];
+            if (touch.clientX < window.innerWidth / 2 && !joystick.active) {
+                joystick.active = true;
+                joystick.startX = touch.clientX;
+                joystick.startY = touch.clientY;
+                joystick.currX = touch.clientX;
+                joystick.currY = touch.clientY;
+            }
+        }
+    });
+
+    window.addEventListener('touchmove', (e) => {
+        if (!joystick.active) return;
+        for (let i = 0; i < e.touches.length; i++) {
+            const touch = e.touches[i];
+            if (touch.clientX < window.innerWidth) {
+                joystick.currX = touch.clientX;
+                joystick.currY = touch.clientY;
+                
+                const dx = joystick.currX - joystick.startX;
+                const dy = joystick.currY - joystick.startY;
+                const dist = Math.hypot(dx, dy);
+                const angle = Math.atan2(dy, dx);
+                
+                const moveDist = Math.min(dist, joystick.maxRadius);
+                joystick.dx = Math.cos(angle) * (moveDist / joystick.maxRadius);
+                joystick.dy = Math.sin(angle) * (moveDist / joystick.maxRadius);
+            }
+        }
+    });
+
+    const stopJoystick = () => {
+        joystick.active = false;
+        joystick.dx = 0;
+        joystick.dy = 0;
+    };
+    window.addEventListener('touchend', stopJoystick);
+    window.addEventListener('touchcancel', stopJoystick);
+
+    const keys = {};
+    window.addEventListener('keydown', e => keys[e.key] = true);
+    window.addEventListener('keyup', e => keys[e.key] = false);
+
+    // --- Game Logic ---
+    function update() {
+        if (isTaskActive) return;
+
+        let moveX = joystick.dx;
+        let moveY = joystick.dy;
+
+        if (keys['ArrowLeft'] || keys['a']) moveX = -1;
+        if (keys['ArrowRight'] || keys['d']) moveX = 1;
+        if (keys['ArrowUp'] || keys['w']) moveY = -1;
+        if (keys['ArrowDown'] || keys['s']) moveY = 1;
+
+        if (moveX !== 0 || moveY !== 0) {
+            const mag = Math.hypot(moveX, moveY);
+            player.vx = (moveX / mag) * player.speed;
+            player.vy = (moveY / mag) * player.speed;
+            player.angle = Math.atan2(player.vy, player.vx);
+            player.idleTimer = 0;
+
+            if (Math.random() < 0.15) {
+                footprints.push({ x: player.x, y: player.y, angle: player.angle });
+            }
+        } else {
+            player.vx = 0;
+            player.vy = 0;
+            player.idleTimer += 0.05;
+        }
+
+        let nextX = player.x + player.vx;
+        let nextY = player.y + player.vy;
+
+        for (let obs of obstacles) {
+            const dist = Math.hypot(nextX - obs.x, nextY - obs.y);
+            if (dist < player.radius + obs.radius) {
+                const angle = Math.atan2(nextY - obs.y, nextX - obs.x);
+                nextX = obs.x + Math.cos(angle) * (player.radius + obs.radius);
+                nextY = obs.y + Math.sin(angle) * (player.radius + obs.radius);
+            }
+        }
+
+        player.x = Math.max(30, Math.min(1500, nextX));
+        player.y = Math.max(30, Math.min(1500, nextY));
+
+        drone.x += (player.x - 30 - drone.x) * 0.05;
+        drone.y += (player.y - 30 - drone.y) * 0.05;
+
+        const activeChapterRelics = relics.filter(r => r.chapter === currentChapter && !r.recovered);
+        let nearRelic = null;
+
+        if (activeChapterRelics.length > 0) {
+            const target = activeChapterRelics[0];
+            drone.targetAngle = Math.atan2(target.y - drone.y, target.x - drone.x);
+
+            const dist = Math.hypot(player.x - target.x, player.y - target.y);
+            if (dist < 60) {
+                nearRelic = target;
+            }
+        }
+
+        const useBtn = document.getElementById('use-btn');
+        if (nearRelic) {
+            useBtn.classList.add('active');
+            activeRelic = nearRelic;
+        } else {
+            useBtn.classList.remove('active');
+            activeRelic = null;
+        }
+
+        bonusCards.filter(b => b.chapter === currentChapter && !b.collected).forEach(bonus => {
+            if (Math.hypot(player.x - bonus.x, player.y - bonus.y) < 30) {
+                bonus.collected = true;
+                floatingTexts.push({ x: bonus.x, y: bonus.y, text: '+1 Bonus Card!', alpha: 1.0 });
+            }
+        });
+
+        floatingTexts.forEach((ft, index) => {
+            ft.y -= 0.5;
+            ft.alpha -= 0.01;
+            if (ft.alpha <= 0) floatingTexts.splice(index, 1);
+        });
+    }
+
+    // --- Rendering ---
+    function render() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.save();
+        // Zoom out and center on player
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.scale(CAMERA_SCALE, CAMERA_SCALE);
+        ctx.translate(-player.x, -player.y);
+
+        // Ground Atmosphere
+        ctx.fillStyle = currentChapter === 1 ? '#1a1d24' : '#2d1810';
+        ctx.fillRect(-1000, -1000, 4000, 4000);
+
+        // Footprints
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
+        footprints.forEach(fp => {
+            ctx.beginPath();
+            ctx.arc(fp.x, fp.y, 3, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Obstacles
+        obstacles.forEach(obs => {
+            ctx.fillStyle = currentChapter === 1 ? '#111318' : '#1f100a';
+            ctx.beginPath();
+            ctx.arc(obs.x, obs.y, obs.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        });
+
+        // Bonus Cards
+        bonusCards.filter(b => b.chapter === currentChapter && !b.collected).forEach(bonus => {
+            ctx.fillStyle = '#f59e0b';
+            ctx.beginPath();
+            ctx.arc(bonus.x + Math.sin(Date.now() * 0.005) * 3, bonus.y, 4, 0, Math.PI * 2);
+            ctx.fill();
+        });
+
+        // Relics
+        relics.filter(r => r.chapter === currentChapter).forEach(relic => {
+            ctx.save();
+            ctx.translate(relic.x, relic.y);
+
+            if (!relic.recovered) {
+                ctx.fillStyle = 'rgba(0,0,0,0.6)';
+                ctx.beginPath(); ctx.arc(0, 0, 24, 0, Math.PI * 2); ctx.fill();
+                ctx.font = '20px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText('🔒', 0, 0);
+            } else {
+                ctx.font = '28px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(relic.icon, 0, 0);
+
+                ctx.fillStyle = '#22c55e';
+                ctx.beginPath(); ctx.arc(12, -12, 6, 0, Math.PI * 2); ctx.fill();
+            }
+            ctx.restore();
+        });
+
+        // --- Animated Cartoon Astronaut ---
+        ctx.save();
+        
+        const isMoving = player.vx !== 0 || player.vy !== 0;
+        if (isMoving) {
+            player.walkCycle += 0.25;
+        } else {
+            player.walkCycle = 0;
+        }
+
+        const legSwing = isMoving ? Math.sin(player.walkCycle) * 12 : 0;
+        const armSwing = isMoving ? Math.sin(player.walkCycle) * 14 : 0;
+        const bodyBounce = isMoving ? Math.abs(Math.sin(player.walkCycle * 2)) * 3 : Math.sin(player.idleTimer) * 2;
+
+        ctx.translate(player.x, player.y - bodyBounce);
+        ctx.rotate(player.angle + Math.PI / 2);
+
+        const r = 24;
+
+        // 1. Backpack
+        ctx.fillStyle = '#cbd5e1';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(-8, 4, 16, 16, 4); else ctx.rect(-8, 4, 16, 16);
+        ctx.fill(); ctx.stroke();
+
+        // 2. Animated Legs
+        ctx.fillStyle = '#f8fafc';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2.5;
+        
+        // Left Leg
+        ctx.save();
+        ctx.translate(-6, 14);
+        ctx.rotate((-legSwing * Math.PI) / 180);
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(-4, 0, 8, 12, 4); else ctx.rect(-4, 0, 8, 12);
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
+
+        // Right Leg
+        ctx.save();
+        ctx.translate(6, 14);
+        ctx.rotate((legSwing * Math.PI) / 180);
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(-4, 0, 8, 12, 4); else ctx.rect(-4, 0, 8, 12);
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
+
+        // 3. Chubby Suit Body
+        ctx.fillStyle = '#f8fafc';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 3;
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(-12, -2, 24, 20, 10); else ctx.rect(-12, -2, 24, 20);
+        ctx.fill(); ctx.stroke();
+
+        // Chest control panel
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fillRect(-6, 2, 12, 8);
+        ctx.fillStyle = '#ef4444';
+        ctx.fillRect(-4, 4, 3, 3);
+        ctx.fillStyle = '#3b82f6';
+        ctx.fillRect(1, 4, 3, 3);
+
+        // 4. Helmet Dome
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 3.5;
+        ctx.beginPath();
+        ctx.arc(0, -14, r - 3, 0, Math.PI * 2);
+        ctx.fill(); ctx.stroke();
+
+        // Ear knobs
+        ctx.fillStyle = '#cbd5e1';
+        ctx.beginPath();
+        ctx.arc(-r + 2, -14, 4, 0, Math.PI * 2);
+        ctx.arc(r - 2, -14, 4, 0, Math.PI * 2);
+        ctx.
