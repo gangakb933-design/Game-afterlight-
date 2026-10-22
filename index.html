@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -131,223 +130,8 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease, transform 0.2s ease;
-            box-shadow: 0 0 20px rgba(59, 130, 246, 0.6);
-        }
-        #use-btn.active {
-            opacity: 1;
-            pointer-events: auto;
-            animation: pulse 1.5s infinite alternate;
-        }
-        
-        @keyframes pulse {
-            0% { transform: scale(1); box-shadow: 0 0 15px rgba(59, 130, 246, 0.5); }
-            100% { transform: scale(1.08); box-shadow: 0 0 25px rgba(96, 165, 250, 0.9); }
-        }
-
-        /* Certificate Screen */
-        input[type="text"] {
-            width: 80%;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 8px;
-            border: 1px solid rgba(255, 255, 255, 0.3);
-            background: rgba(0, 0, 0, 0.5);
-            color: #fff;
-            text-align: center;
-            font-size: 16px;
-        }
-    </style>
-</head>
-<body>
-
-<div id="game-container">
-    <canvas id="gameCanvas"></canvas>
-
-    <!-- HUD Overlay -->
-    <div id="hud-container">
-        <div id="progress-bar-container">
-            <div id="progress-fill"></div>
-        </div>
-        <div id="use-btn">USE</div>
-    </div>
-
-    <!-- Comic Modal -->
-    <div id="comic-modal" class="modal" style="display: flex;">
-        <div class="modal-content glass-panel">
-            <h2 id="comic-title">Chapter 1: The Moon</h2>
-            <p id="comic-text" style="margin: 15px 0; color: #93c5fd; font-style: italic;">"Someone left the lights on."</p>
-            <p style="font-size: 14px; opacity: 0.8; margin-bottom: 20px;">Rotate screen horizontally for best view!</p>
-            <button class="btn" id="start-chapter-btn">Begin Recovery</button>
-        </div>
-    </div>
-
-    <!-- Mini-Game Modal -->
-    <div id="minigame-modal" class="modal">
-        <div class="modal-content glass-panel">
-            <button id="minigame-reset" style="position: absolute; top: 15px; right: 15px; background: none; border: none; color: #aaa; cursor: pointer;">↺ Reset</button>
-            <h3 id="minigame-title">Relic Task</h3>
-            <p id="minigame-desc" style="font-size: 14px; color: #94a3b8; margin: 10px 0;">Complete the task to wake the relic.</p>
-            <div id="minigame-area" style="width: 100%; height: 200px; background: rgba(0,0,0,0.4); border-radius: 12px; margin: 15px 0; position: relative; overflow: hidden; display: flex; justify-content: center; align-items: center;">
-            </div>
-            <button class="btn" id="minigame-submit" style="display: none;">Complete Task</button>
-        </div>
-    </div>
-
-    <!-- Fact Card Modal -->
-    <div id="fact-modal" class="modal">
-        <div class="modal-content glass-panel">
-            <h3 id="fact-relic-name">Relic Recovered!</h3>
-            <div style="background: #fff; padding: 10px; border-radius: 8px; margin: 15px 0; color: #000;">
-                <p id="fact-photo-placeholder" style="height: 120px; background: #e2e8f0; display: flex; justify-content: center; align-items: center; border-radius: 4px; font-weight: bold; color: #64748b;">[ NASA Photo ]</p>
-            </div>
-            <p id="fact-text" style="font-size: 14px; text-align: left; margin-bottom: 15px; line-height: 1.4;"></p>
-            <a id="fact-link" href="#" target="_blank" style="color: #60a5fa; font-size: 12px; text-decoration: none;">Source: NASA Official Archives</a>
-            <br>
-            <button class="btn" id="fact-continue-btn">Continue</button>
-        </div>
-    </div>
-
-    <!-- Certificate Modal -->
-    <div id="certificate-modal" class="modal">
-        <div class="modal-content glass-panel">
-            <h2>Mission Accomplished</h2>
-            <p style="margin: 10px 0; font-size: 14px;">You recovered all historical relics!</p>
-            <input type="text" id="player-name" placeholder="Enter Your Name" maxlength="20">
-            <br>
-            <button class="btn" id="download-cert-btn">Download Certificate</button>
-        </div>
-    </div>
-</div>
-
-<script>
-    // --- Canvas & Engine Setup ---
-    const canvas = document.getElementById('gameCanvas');
-    const ctx = canvas.getContext('2d');
-    
-    // Zoom factor: Lower value = zoomed out view
-    const CAMERA_SCALE = 0.65;
-
-    function resizeCanvas() {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    }
-    window.addEventListener('resize', resizeCanvas);
-    resizeCanvas();
-
-    // --- Game State ---
-    let currentChapter = 1;
-    let progress = 0;
-    let footprints = [];
-    let floatingTexts = [];
-    let isTaskActive = false;
-    let activeRelic = null;
-
-    // Player Data
-    const player = {
-        x: 300,
-        y: 300,
-        radius: 16,
-        vx: 0,
-        vy: 0,
-        speed: 3.5,
-        angle: 0,
-        idleTimer: 0,
-        walkCycle: 0
-    };
-
-    // Virtual Joystick
-    const joystick = {
-        active: false,
-        startX: 0,
-        startY: 0,
-        currX: 0,
-        currY: 0,
-        maxRadius: 50,
-        dx: 0,
-        dy: 0
-    };
-
-    // Drone Companion
-    const drone = {
-        x: 280,
-        y: 280,
-        targetAngle: 0
-    };
-
-    // World Relics
-    const relics = [
-        { id: 1, chapter: 1, name: 'Apollo Science Station', x: 600, y: 300, recovered: false, icon: '⚡' },
-        { id: 2, chapter: 1, name: 'Lunar Rover', x: 1000, y: 600, recovered: false, icon: '🚜' },
-        { id: 3, chapter: 1, name: 'Surveyor 3', x: 400, y: 900, recovered: false, icon: '📡' },
-        { id: 4, chapter: 2, name: 'Viking Lander', x: 500, y: 400, recovered: false, icon: '🛰️' },
-        { id: 5, chapter: 2, name: 'Phoenix Lander', x: 1100, y: 500, recovered: false, icon: '⛏️' },
-        { id: 6, chapter: 2, name: 'Ingenuity Helicopter', x: 800, y: 1000, recovered: false, icon: '🚁' }
-    ];
-
-    const bonusCards = [
-        { id: 1, chapter: 1, x: 800, y: 200, collected: false },
-        { id: 2, chapter: 1, x: 200, y: 800, collected: false },
-        { id: 3, chapter: 2, x: 900, y: 300, collected: false },
-        { id: 4, chapter: 2, x: 300, y: 900, collected: false }
-    ];
-
-    const obstacles = [
-        { x: 500, y: 500, radius: 40 },
-        { x: 800, y: 750, radius: 60 },
-        { x: 350, y: 650, radius: 35 }
-    ];
-
-    // --- Input Handling ---
-    window.addEventListener('touchstart', (e) => {
-        if (isTaskActive) return;
-        for (let i = 0; i < e.touches.length; i++) {
-            const touch = e.touches[i];
-            if (touch.clientX < window.innerWidth / 2 && !joystick.active) {
-                joystick.active = true;
-                joystick.startX = touch.clientX;
-                joystick.startY = touch.clientY;
-                joystick.currX = touch.clientX;
-                joystick.currY = touch.clientY;
-            }
-        }
-    });
-
-    window.addEventListener('touchmove', (e) => {
-        if (!joystick.active) return;
-        for (let i = 0; i < e.touches.length; i++) {
-            const touch = e.touches[i];
-            if (touch.clientX < window.innerWidth) {
-                joystick.currX = touch.clientX;
-                joystick.currY = touch.clientY;
-                
-                const dx = joystick.currX - joystick.startX;
-                const dy = joystick.currY - joystick.startY;
-                const dist = Math.hypot(dx, dy);
-                const angle = Math.atan2(dy, dx);
-                
-                const moveDist = Math.min(dist, joystick.maxRadius);
-                joystick.dx = Math.cos(angle) * (moveDist / joystick.maxRadius);
-                joystick.dy = Math.sin(angle) * (moveDist / joystick.maxRadius);
-            }
-        }
-    });
-
-    const stopJoystick = () => {
-        joystick.active = false;
-        joystick.dx = 0;
-        joystick.dy = 0;
-    };
-    window.addEventListener('touchend', stopJoystick);
-    window.addEventListener('touchcancel', stopJoystick);
-
-    const keys = {};
-    window.addEventListener('keydown', e => keys[e.key] = true);
-    window.addEventListener('keyup', e => keys[e.key] = false);
-
-    // --- Game Logic ---
+            opacity: 0
+                // --- Game Logic ---
     function update() {
         if (isTaskActive) return;
 
@@ -434,16 +218,13 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         ctx.save();
-        // Zoom out and center on player
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.scale(CAMERA_SCALE, CAMERA_SCALE);
         ctx.translate(-player.x, -player.y);
 
-        // Ground Atmosphere
         ctx.fillStyle = currentChapter === 1 ? '#1a1d24' : '#2d1810';
         ctx.fillRect(-1000, -1000, 4000, 4000);
 
-        // Footprints
         ctx.fillStyle = 'rgba(0, 0, 0, 0.25)';
         footprints.forEach(fp => {
             ctx.beginPath();
@@ -451,7 +232,6 @@
             ctx.fill();
         });
 
-        // Obstacles
         obstacles.forEach(obs => {
             ctx.fillStyle = currentChapter === 1 ? '#111318' : '#1f100a';
             ctx.beginPath();
@@ -462,7 +242,6 @@
             ctx.stroke();
         });
 
-        // Bonus Cards
         bonusCards.filter(b => b.chapter === currentChapter && !b.collected).forEach(bonus => {
             ctx.fillStyle = '#f59e0b';
             ctx.beginPath();
@@ -470,7 +249,6 @@
             ctx.fill();
         });
 
-        // Relics
         relics.filter(r => r.chapter === currentChapter).forEach(relic => {
             ctx.save();
             ctx.translate(relic.x, relic.y);
@@ -513,7 +291,7 @@
 
         const r = 24;
 
-        // 1. Backpack
+        // Backpack
         ctx.fillStyle = '#cbd5e1';
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 2.5;
@@ -521,12 +299,11 @@
         if (ctx.roundRect) ctx.roundRect(-8, 4, 16, 16, 4); else ctx.rect(-8, 4, 16, 16);
         ctx.fill(); ctx.stroke();
 
-        // 2. Animated Legs
+        // Legs
         ctx.fillStyle = '#f8fafc';
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 2.5;
         
-        // Left Leg
         ctx.save();
         ctx.translate(-6, 14);
         ctx.rotate((-legSwing * Math.PI) / 180);
@@ -535,7 +312,6 @@
         ctx.fill(); ctx.stroke();
         ctx.restore();
 
-        // Right Leg
         ctx.save();
         ctx.translate(6, 14);
         ctx.rotate((legSwing * Math.PI) / 180);
@@ -544,7 +320,7 @@
         ctx.fill(); ctx.stroke();
         ctx.restore();
 
-        // 3. Chubby Suit Body
+        // Body
         ctx.fillStyle = '#f8fafc';
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 3;
@@ -552,7 +328,6 @@
         if (ctx.roundRect) ctx.roundRect(-12, -2, 24, 20, 10); else ctx.rect(-12, -2, 24, 20);
         ctx.fill(); ctx.stroke();
 
-        // Chest control panel
         ctx.fillStyle = '#e2e8f0';
         ctx.fillRect(-6, 2, 12, 8);
         ctx.fillStyle = '#ef4444';
@@ -560,7 +335,7 @@
         ctx.fillStyle = '#3b82f6';
         ctx.fillRect(1, 4, 3, 3);
 
-        // 4. Helmet Dome
+        // Helmet
         ctx.fillStyle = '#ffffff';
         ctx.strokeStyle = '#0f172a';
         ctx.lineWidth = 3.5;
@@ -568,9 +343,179 @@
         ctx.arc(0, -14, r - 3, 0, Math.PI * 2);
         ctx.fill(); ctx.stroke();
 
-        // Ear knobs
         ctx.fillStyle = '#cbd5e1';
         ctx.beginPath();
         ctx.arc(-r + 2, -14, 4, 0, Math.PI * 2);
         ctx.arc(r - 2, -14, 4, 0, Math.PI * 2);
-        ctx.
+        ctx.fill(); ctx.stroke();
+
+        // Visor
+        ctx.fillStyle = '#0f172a';
+        ctx.beginPath();
+        ctx.ellipse(0, -14, r - 7, r - 9, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.beginPath(); ctx.arc(4, -17, 3.5, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        ctx.beginPath(); ctx.arc(-3, -11, 1.5, 0, Math.PI * 2); ctx.fill();
+
+        // Arms
+        ctx.fillStyle = '#ffffff';
+        ctx.strokeStyle = '#0f172a';
+        ctx.lineWidth = 2.5;
+
+        ctx.save();
+        ctx.translate(-14, 2);
+        ctx.rotate((armSwing * Math.PI) / 180);
+        ctx.beginPath(); ctx.arc(0, 8, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.restore();
+
+        ctx.save();
+        ctx.translate(14, 2);
+        ctx.rotate((-armSwing * Math.PI) / 180);
+        ctx.beginPath(); ctx.arc(0, 8, 5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.restore();
+
+        ctx.restore();
+
+        // Drone
+        ctx.save();
+        ctx.translate(drone.x, drone.y);
+        ctx.rotate(drone.targetAngle);
+        ctx.fillStyle = '#60a5fa';
+        ctx.fillRect(-6, -6, 12, 12);
+        ctx.fillStyle = '#ef4444';
+        ctx.beginPath(); ctx.moveTo(8, 0); ctx.lineTo(14, -4); ctx.lineTo(14, 4); ctx.fill();
+        ctx.restore();
+
+        floatingTexts.forEach(ft => {
+            ctx.fillStyle = `rgba(245, 158, 11, ${ft.alpha})`;
+            ctx.font = 'bold 14px sans-serif';
+            ctx.fillText(ft.text, ft.x - 30, ft.y);
+        });
+
+        ctx.restore();
+
+        renderMinimap();
+    }
+
+    function renderMinimap() {
+        const size = 100;
+        const margin = 16;
+        const x = canvas.width - size - margin;
+        const y = margin;
+
+        ctx.fillStyle = 'rgba(15, 23, 42, 0.7)';
+        ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+        ctx.lineWidth = 2;
+        ctx.fillRect(x, y, size, size);
+        ctx.strokeRect(x, y, size, size);
+
+        const mapScale = size / 1500;
+        ctx.fillStyle = '#38bdf8';
+        ctx.fillRect(x + player.x * mapScale, y + player.y * mapScale, 4, 4);
+
+        relics.filter(r => r.chapter === currentChapter).forEach(r => {
+            ctx.fillStyle = r.recovered ? '#22c55e' : '#ef4444';
+            ctx.fillRect(x + r.x * mapScale, y + r.y * mapScale, 3, 3);
+        });
+    }
+
+    function gameLoop() {
+        update();
+        render();
+        requestAnimationFrame(gameLoop);
+    }
+    gameLoop();
+
+    // --- UI Interactions with Mobile Touch Support ---
+    const minigameModal = document.getElementById('minigame-modal');
+    const minigameArea = document.getElementById('minigame-area');
+    const factModal = document.getElementById('fact-modal');
+
+    const startBtn = document.getElementById('start-chapter-btn');
+    const triggerStart = (e) => {
+        if (e) e.preventDefault();
+        document.getElementById('comic-modal').style.display = 'none';
+        isTaskActive = false;
+    };
+    startBtn.addEventListener('click', triggerStart);
+    startBtn.addEventListener('touchend', triggerStart);
+
+    const useBtn = document.getElementById('use-btn');
+    const triggerUse = (e) => {
+        if (e) e.preventDefault();
+        if (!activeRelic) return;
+        isTaskActive = true;
+        document.getElementById('minigame-title').innerText = activeRelic.name;
+        minigameModal.style.display = 'flex';
+        loadMiniGame(activeRelic);
+    };
+    useBtn.addEventListener('click', triggerUse);
+    useBtn.addEventListener('touchend', triggerUse);
+
+    function loadMiniGame(relic) {
+        minigameArea.innerHTML = '';
+        const btn = document.getElementById('minigame-submit');
+        btn.style.display = 'inline-block';
+        minigameArea.innerHTML = '<p style="color:#aaa;">Complete telemetry alignment to restore unit.</p>';
+
+        const handleComplete = (e) => {
+            if (e) e.preventDefault();
+            relic.recovered = true;
+            minigameModal.style.display = 'none';
+            showFactCard(relic);
+            updateProgress();
+        };
+        btn.onclick = handleComplete;
+        btn.ontouchend = handleComplete;
+    }
+
+    function showFactCard(relic) {
+        factModal.style.display = 'flex';
+        document.getElementById('fact-relic-name').innerText = relic.name + ' Restored';
+        document.getElementById('fact-text').innerText = `Historical Record: ${relic.name} contributed crucial scientific telemetry during its active mission lifecycle.`;
+    }
+
+    const factContinueBtn = document.getElementById('fact-continue-btn');
+    const handleContinue = (e) => {
+        if (e) e.preventDefault();
+        factModal.style.display = 'none';
+        isTaskActive = false;
+
+        const currentChapterRelics = relics.filter(r => r.chapter === currentChapter);
+        if (currentChapterRelics.every(r => r.recovered)) {
+            if (currentChapter === 1) {
+                currentChapter = 2;
+                document.getElementById('comic-title').innerText = 'Chapter 2: Mars';
+                document.getElementById('comic-text').innerText = '"Mars keeps its secrets slowly."';
+                document.getElementById('comic-modal').style.display = 'flex';
+                player.x = 300; player.y = 300;
+            } else {
+                document.getElementById('certificate-modal').style.display = 'flex';
+            }
+        }
+    };
+    factContinueBtn.addEventListener('click', handleContinue);
+    factContinueBtn.addEventListener('touchend', handleContinue);
+
+    function updateProgress() {
+        const total = relics.length;
+        const done = relics.filter(r => r.recovered).length;
+        progress = (done / total) * 100;
+        document.getElementById('progress-fill').style.width = progress + '%';
+    }
+
+    const downloadCertBtn = document.getElementById('download-cert-btn');
+    const handleCert = (e) => {
+        if (e) e.preventDefault();
+        const pName = document.getElementById('player-name').value || 'Astronaut';
+        alert(`Certificate issued to ${pName}! Recovery complete.`);
+    };
+    downloadCertBtn.addEventListener('click', handleCert);
+    downloadCertBtn.addEventListener('touchend', handleCert);
+</script>
+</body>
+</html>
+        
